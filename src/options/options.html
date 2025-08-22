@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn Auto-Apply Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #0077b5 0%, #005885 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .section h2 {
+      color: #0077b5;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    input[type="checkbox"] {
+      margin-right: 8px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .keyword-input {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .keyword-input input {
+      flex: 1;
+    }
+
+    .keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .keyword-tag {
+      background: #e3f2fd;
+      color: #0077b5;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .keyword-tag .remove {
+      cursor: pointer;
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #0077b5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #005885;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+      margin-left: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-add {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-add:hover {
+      background: #218838;
+    }
+
+    .range-group {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .range-group input {
+      flex: 1;
+    }
+
+    .range-value {
+      min-width: 60px;
+      text-align: center;
+      font-weight: 500;
+      color: #0077b5;
+    }
+
+    .tab-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.3s ease;
+    }
+
+    .tab.active {
+      color: #0077b5;
+      border-bottom: 2px solid #0077b5;
+      margin-bottom: -2px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .success-message {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #e0e0e0;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      font-weight: normal;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>LinkedIn Auto-Apply Settings</h1>
+      <p>Configure your job search preferences and automation settings</p>
+    </div>
+
+    <div class="success-message" id="successMessage">
+      Settings saved successfully!
+    </div>
+
+    <div class="tab-container">
+      <button class="tab active" data-tab="filters">Job Filters</button>
+      <button class="tab" data-tab="automation">Automation</button>
+      <button class="tab" data-tab="profile">Profile</button>
+    </div>
+
+    <!-- Job Filters Tab -->
+    <div class="tab-content active" id="filters-tab">
+      <div class="section">
+        <h2>Job Search Filters</h2>
+        
+        <div class="form-group">
+          <label>Keywords (job title, skills, companies)</label>
+          <div class="keyword-input">
+            <input type="text" id="keywordInput" placeholder="Enter a keyword">
+            <button class="btn btn-add" id="addKeyword">Add</button>
+          </div>
+          <div class="keyword-list" id="keywordList"></div>
+          <div class="help-text">Jobs matching these keywords will be prioritized</div>
+        </div>
+
+        <div class="form-group">
+          <label>Keyword Matching Logic</label>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="keywordLogic" value="OR" checked>
+              Match ANY keyword (OR)
+            </label>
+            <label>
+              <input type="radio" name="keywordLogic" value="AND">
+              Match ALL keywords (AND)
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Remote Preference</label>
+          <select id="remoteFilter">
+            <option value="any">Any</option>
+            <option value="yes">Remote Only</option>
+            <option value="no">On-site Only</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Experience Level</label>
+          <select id="experienceLevel">
+            <option value="any">Any</option>
+            <option value="internship">Internship</option>
+            <option value="entry">Entry Level</option>
+            <option value="associate">Associate</option>
+            <option value="mid">Mid-Senior Level</option>
+            <option value="senior">Senior Level</option>
+            <option value="executive">Executive</option>
+            <option value="director">Director</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Job Posted Within</label>
+          <select id="postedWithin">
+            <option value="1">Last 24 hours</option>
+            <option value="3">Last 3 days</option>
+            <option value="7" selected>Last week</option>
+            <option value="14">Last 2 weeks</option>
+            <option value="30">Last month</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Minimum Salary (Optional)</label>
+          <input type="number" id="salaryMin" placeholder="e.g., 50000">
+          <div class="help-text">Leave empty to ignore salary filter</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automation Tab -->
+    <div class="tab-content" id="automation-tab">
+      <div class="section">
+        <h2>Automation Settings</h2>
+        
+        <div class="form-group">
+          <label>Automation Mode</label>
+          <select id="automationMode">
+            <option value="auto">Fully Automatic</option>
+            <option value="semi-auto" selected>Semi-Automatic (Review before submit)</option>
+            <option value="review">Review Only (Don't submit)</option>
+          </select>
+          <div class="help-text">Controls how much human intervention is required</div>
+        </div>
+
+        <div class="form-group">
+          <label>Daily Application Limit</label>
+          <div class="range-group">
+            <input type="range" id="dailyLimit" min="1" max="100" value="50">
+            <span class="range-value" id="dailyLimitValue">50</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Session Application Limit</label>
+          <div class="range-group">
+            <input type="range" id="sessionLimit" min="1" max="50" value="10">
+            <span class="range-value" id="sessionLimitValue">10</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Delay Between Actions (seconds)</label>
+          <div style="display: flex; gap: 15px;">
+            <div style="flex: 1;">
+              <label style="font-weight: normal;">Min</label>
+              <input type="number" id="delayMin" value="3" min="1" max="30">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-weight: normal;">Max</label>
+              <input type="number" id="delayMax" value="8" min="2" max="60">
+            </div>
+          </div>
+          <div class="help-text">Random delay to appear more human-like</div>
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="antiDetection" checked>
+            Enable Anti-Detection Features
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="humanizeActions" checked>
+            Humanize Mouse Movements
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="notifyOnSubmit" checked>
+            Notify on Application Submission
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="notifyOnError" checked>
+            Notify on Errors
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Tab -->
+    <div class="tab-content" id="profile-tab">
+      <div class="section">
+        <h2>Your Profile Information</h2>
+        <p style="margin-bottom: 20px; color: #666;">This information will be used to auto-fill application forms</p>
+        
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="firstName" placeholder="John">
+        </div>
+
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="Doe">
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="email" placeholder="john.doe@example.com">
+        </div>
+
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="text" id="phone" placeholder="+1 (555) 123-4567">
+        </div>
+
+        <div class="form-group">
+          <label>Current Job Title</label>
+          <input type="text" id="currentTitle" placeholder="Software Engineer">
+        </div>
+
+        <div class="form-group">
+          <label>Current Company</label>
+          <input type="text" id="currentCompany" placeholder="Tech Corp">
+        </div>
+
+        <div class="form-group">
+          <label>Years of Experience</label>
+          <input type="number" id="yearsExperience" placeholder="5" min="0" max="50">
+        </div>
+
+        <div class="form-group">
+          <label>LinkedIn Profile URL</label>
+          <input type="text" id="linkedinUrl" placeholder="https://linkedin.com/in/johndoe">
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div>
+        <button class="btn btn-primary" id="saveBtn">Save Settings</button>
+        <button class="btn btn-secondary" id="resetBtn">Reset to Defaults</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

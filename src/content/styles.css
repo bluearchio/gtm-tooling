@@ -1,0 +1,251 @@
+/**
+ * Content Script Styles
+ * Styles for injected UI elements
+ */
+
+/* Auto-Apply Status Overlay */
+#auto-apply-status {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  background: white !important;
+  border: 2px solid #0077b5 !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  z-index: 10000 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  max-width: 320px !important;
+  animation: slideIn 0.3s ease-out !important;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+#auto-apply-status .status-header {
+  font-weight: bold !important;
+  color: #0077b5 !important;
+  margin-bottom: 10px !important;
+  font-size: 16px !important;
+}
+
+#auto-apply-status .status-content {
+  font-size: 14px !important;
+  color: #333 !important;
+  line-height: 1.5 !important;
+}
+
+#auto-apply-status .status-stats {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #e0e0e0 !important;
+  font-size: 13px !important;
+}
+
+#auto-apply-status .status-stats div {
+  margin-bottom: 4px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+}
+
+#auto-apply-status .status-stats .stat-label {
+  color: #666 !important;
+}
+
+#auto-apply-status .status-stats .stat-value {
+  font-weight: 600 !important;
+  color: #0077b5 !important;
+}
+
+/* Job Card Highlight */
+.auto-apply-processed {
+  position: relative !important;
+}
+
+.auto-apply-processed::after {
+  content: "✓" !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  background: #28a745 !important;
+  color: white !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+.auto-apply-skipped {
+  opacity: 0.6 !important;
+}
+
+.auto-apply-skipped::after {
+  content: "—" !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  background: #6c757d !important;
+  color: white !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+}
+
+/* Match Score Badge */
+.auto-apply-match-score {
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  background: linear-gradient(135deg, #0077b5, #005885) !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* Loading Indicator */
+.auto-apply-loading {
+  display: inline-block !important;
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid #0077b5 !important;
+  border-radius: 50% !important;
+  border-top-color: transparent !important;
+  animation: spin 1s linear infinite !important;
+  margin-left: 8px !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Action Buttons */
+.auto-apply-action-btn {
+  background: #0077b5 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: background 0.3s ease !important;
+  margin-right: 8px !important;
+}
+
+.auto-apply-action-btn:hover {
+  background: #005885 !important;
+}
+
+.auto-apply-action-btn:disabled {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+}
+
+/* Notification Toast */
+.auto-apply-toast {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  background: white !important;
+  border-left: 4px solid #0077b5 !important;
+  padding: 16px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  z-index: 10001 !important;
+  max-width: 350px !important;
+  animation: slideDown 0.3s ease-out !important;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.auto-apply-toast.success {
+  border-left-color: #28a745 !important;
+}
+
+.auto-apply-toast.error {
+  border-left-color: #dc3545 !important;
+}
+
+.auto-apply-toast.warning {
+  border-left-color: #ffc107 !important;
+}
+
+.auto-apply-toast-title {
+  font-weight: bold !important;
+  margin-bottom: 4px !important;
+  color: #333 !important;
+}
+
+.auto-apply-toast-message {
+  font-size: 14px !important;
+  color: #666 !important;
+}
+
+/* Progress Bar */
+.auto-apply-progress {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 3px !important;
+  background: #e0e0e0 !important;
+  z-index: 10000 !important;
+}
+
+.auto-apply-progress-bar {
+  height: 100% !important;
+  background: linear-gradient(90deg, #0077b5, #00a0dc) !important;
+  transition: width 0.3s ease !important;
+  box-shadow: 0 0 10px rgba(0, 119, 181, 0.5) !important;
+}
+
+/* Highlight for current processing job */
+.auto-apply-processing {
+  background: #fff3cd !important;
+  border: 2px solid #ffc107 !important;
+  animation: pulse 2s infinite !important;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}

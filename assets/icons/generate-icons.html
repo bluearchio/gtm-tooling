@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+</head>
+<body>
+  <h1>LinkedIn Auto-Apply Icon Generator</h1>
+  <p>Open this file in a browser, then right-click each canvas and save as PNG with the specified filename.</p>
+  
+  <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div>
+      <h3>icon16.png</h3>
+      <canvas id="icon16" width="16" height="16" style="border: 1px solid #ccc; image-rendering: pixelated; width: 64px; height: 64px;"></canvas>
+    </div>
+    
+    <div>
+      <h3>icon32.png</h3>
+      <canvas id="icon32" width="32" height="32" style="border: 1px solid #ccc; image-rendering: pixelated; width: 64px; height: 64px;"></canvas>
+    </div>
+    
+    <div>
+      <h3>icon48.png</h3>
+      <canvas id="icon48" width="48" height="48" style="border: 1px solid #ccc; image-rendering: pixelated; width: 96px; height: 96px;"></canvas>
+    </div>
+    
+    <div>
+      <h3>icon128.png</h3>
+      <canvas id="icon128" width="128" height="128" style="border: 1px solid #ccc;"></canvas>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(canvasId, size) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#0077b5');
+      gradient.addColorStop(1, '#005885');
+      
+      // Draw rounded rectangle background
+      ctx.fillStyle = gradient;
+      const radius = size * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(size - radius, 0);
+      ctx.quadraticCurveTo(size, 0, size, radius);
+      ctx.lineTo(size, size - radius);
+      ctx.quadraticCurveTo(size, size, size - radius, size);
+      ctx.lineTo(radius, size);
+      ctx.quadraticCurveTo(0, size, 0, size - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw "LA" text (LinkedIn Auto-apply)
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size * 0.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LA', size / 2, size / 2);
+      
+      // Convert to data URL and create download link
+      canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = canvasId + '.png';
+        link.textContent = 'Download ' + canvasId + '.png';
+        link.style.display = 'block';
+        link.style.marginTop = '10px';
+        canvas.parentElement.appendChild(link);
+      });
+    }
+    
+    // Generate all icon sizes
+    drawIcon('icon16', 16);
+    drawIcon('icon32', 32);
+    drawIcon('icon48', 48);
+    drawIcon('icon128', 128);
+  </script>
+</body>
+</html>
