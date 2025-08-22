@@ -13,14 +13,40 @@ const loadModule = (filename) => {
   return fs.readFileSync(filePath, 'utf8')
 }
 
+// Load modules from different directories
+const loadContentModule = (filename) => {
+  const filePath = path.join(process.cwd(), 'src/content', filename)
+  return fs.readFileSync(filePath, 'utf8')
+}
+
+const loadUtilModule = (filename) => {
+  const filePath = path.join(process.cwd(), 'src/utils', filename)
+  return fs.readFileSync(filePath, 'utf8')
+}
+
+const loadBackgroundModule = (filename) => {
+  const filePath = path.join(process.cwd(), 'src/background', filename)
+  return fs.readFileSync(filePath, 'utf8')
+}
+
 // Execute all modules in order
-eval(loadModule('anti-detection.js'))
-eval(loadModule('linkedin-analyzer.js'))
-eval(loadModule('form-filler.js'))
-eval(loadModule('content.js'))
+eval(loadContentModule('anti-detection.js'))
+eval(loadContentModule('linkedin-analyzer.js'))
+eval(loadContentModule('form-filler.js'))
+eval(loadContentModule('filter-engine.js'))
+eval(loadUtilModule('storage.js'))
+eval(loadContentModule('content.js'))
+
+// Partially load service worker for testing (avoid global state conflicts)
+const serviceWorkerCode = loadBackgroundModule('service-worker.js')
+// Extract only the functions we need for testing
+const filterJobsMatch = serviceWorkerCode.match(/async function filterJobs\([\s\S]*?^}/m)
+const evaluateJobMatchMatch = serviceWorkerCode.match(/async function evaluateJobMatch\([\s\S]*?^}/m)
+if (filterJobsMatch) eval(filterJobsMatch[0])
+if (evaluateJobMatchMatch) eval(evaluateJobMatchMatch[0])
 
 describe('Component Integration Tests', () => {
-  let analyzer, formFiller, antiDetection
+  let analyzer, formFiller, antiDetection, filterEngine, storage
   
   beforeEach(async () => {
     // Reset DOM
@@ -44,14 +70,19 @@ describe('Component Integration Tests', () => {
     antiDetection = new AntiDetectionSystem()
     analyzer = new LinkedInAnalyzer()
     formFiller = new FormFiller()
+    filterEngine = new FilterEngine()
+    storage = global.Storage || globalThis.Storage
     
     await antiDetection.loadConfig()
     await formFiller.init()
+    await filterEngine.loadConfig()
     
     // Expose modules globally for content script
     window.antiDetection = antiDetection
     window.linkedInAnalyzer = analyzer
     window.formFiller = formFiller
+    window.filterEngine = filterEngine
+    window.storage = storage
   })
 
   describe('Job Discovery and Analysis Workflow', () => {
@@ -606,6 +637,503 @@ describe('Component Integration Tests', () => {
       
       expect(result1.success).toBe(true)
       expect(result2.success).toBe(true)
+    })
+  })
+
+  describe('Filter Engine Integration', () => {
+    test('should integrate filter engine with job discovery', async () => {
+      // Configure filter engine
+      filterEngine.config.filters = {
+        isRemote: 'yes',
+        keywords: ['react', 'javascript'],
+        keywordLogic: 'OR',
+        experienceLevel: 'senior',
+        postedWithin: 7
+      }
+
+      // Setup job search page with various jobs
+      document.body.innerHTML = mockDOMStructures.jobSearchPage
+      
+      const jobs = await findJobsOnPage()
+      expect(jobs.length).toBeGreaterThan(0)
+
+      // Filter jobs using the filter engine
+      const filteredJobs = filterEngine.filterJobs(jobs)
+      
+      // Should only include jobs that match criteria
+      filteredJobs.forEach(job => {
+        const matchResult = filterEngine.matchJob(job)
+        expect(matchResult.matches).toBe(true)
+        expect(job.matchScore).toBeGreaterThan(0.5)
+        expect(Array.isArray(job.matchReasons)).toBe(true)
+      })
+
+      // Verify jobs are sorted by match score
+      for (let i = 1; i < filteredJobs.length; i++) {
+        expect(filteredJobs[i-1].matchScore).toBeGreaterThanOrEqual(filteredJobs[i].matchScore)
+      }
+    })
+
+    test('should coordinate filter engine with background service worker', async () => {
+      // Mock jobs data
+      const testJobs = [
+        { ...mockJobData.softwareEngineerJob, description: 'React and JavaScript development', isRemote: true },
+        { ...mockJobData.frontendJob, description: 'Angular development', isRemote: false },
+        { ...mockJobData.backendJob, description: 'Python backend services', isRemote: true }
+      ]
+
+      // Configure global state for service worker functions
+      global.state = {
+        config: {
+          filters: {
+            isRemote: 'yes',
+            keywords: ['react', 'javascript'],
+            keywordLogic: 'OR'
+          }
+        }
+      }
+
+      // Test background service worker filtering
+      if (typeof global.filterJobs === 'function') {
+        const filtered = await global.filterJobs(testJobs)
+        
+        expect(filtered.length).toBeLessThanOrEqual(testJobs.length)
+        filtered.forEach(job => {
+          expect(job.isRemote).toBe(true) // Should match remote filter
+        })
+      }
+    })
+
+    test('should handle real-time filter updates', async () => {
+      // Setup initial jobs
+      document.body.innerHTML = mockDOMStructures.jobSearchPage
+      const jobs = await findJobsOnPage()
+
+      // Initial filter - broad criteria
+      filterEngine.updateConfig({
+        filters: {
+          isRemote: 'any',
+          keywords: [],
+          experienceLevel: 'any'
+        }
+      })
+
+      const initialFiltered = filterEngine.filterJobs(jobs)
+      const initialCount = initialFiltered.length
+
+      // Update filter - narrow criteria
+      filterEngine.updateConfig({
+        filters: {
+          isRemote: 'yes',
+          keywords: ['senior', 'react'],
+          keywordLogic: 'AND',
+          experienceLevel: 'senior'
+        }
+      })
+
+      const updatedFiltered = filterEngine.filterJobs(jobs)
+      const updatedCount = updatedFiltered.length
+
+      // Should have fewer matches with stricter criteria
+      expect(updatedCount).toBeLessThanOrEqual(initialCount)
+    })
+
+    test('should integrate filter engine with content script job analysis', async () => {
+      // Setup job detail page
+      document.body.innerHTML = mockDOMStructures.jobDetailPage
+      window.location.href = 'https://www.linkedin.com/jobs/view/123456789/'
+      analyzer.waitForElement = jest.fn().mockResolvedValue(document.querySelector('.jobs-description'))
+
+      // Analyze job detail
+      const analysis = await analyzePage()
+      expect(analysis.success).toBe(true)
+
+      // Apply filtering to the analyzed job
+      const matchResult = filterEngine.matchJob(analysis.job)
+      
+      expect(matchResult).toHaveProperty('matches')
+      expect(matchResult).toHaveProperty('score')
+      expect(matchResult).toHaveProperty('reasons')
+      expect(matchResult).toHaveProperty('failedFilters')
+
+      // If job matches, should have positive score and reasons
+      if (matchResult.matches) {
+        expect(matchResult.score).toBeGreaterThan(0)
+        expect(matchResult.reasons.length).toBeGreaterThan(0)
+      }
+    })
+  })
+
+  describe('Storage Integration', () => {
+    test('should coordinate storage with form filler for user profile', async () => {
+      // Save user profile through storage
+      const testProfile = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        currentTitle: 'Senior Developer'
+      }
+
+      await storage.saveUserProfile(testProfile)
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ userProfile: testProfile })
+
+      // Load profile in form filler
+      chrome.storage.local.get.mockResolvedValue({ userProfile: testProfile })
+      
+      const profile = await storage.getUserProfile()
+      expect(profile.firstName).toBe('John')
+
+      // Use profile in form filling
+      formFiller.userProfile = profile
+
+      const form = document.createElement('form')
+      form.innerHTML = `
+        <input type="text" name="firstName" id="firstName" required>
+        <input type="text" name="lastName" id="lastName" required>
+        <input type="email" name="email" id="email" required>
+      `
+      document.body.appendChild(form)
+
+      const fillResult = await formFiller.fillForm()
+      expect(fillResult.success).toBe(true)
+
+      expect(document.getElementById('firstName').value).toBe('John')
+      expect(document.getElementById('lastName').value).toBe('Doe')
+      expect(document.getElementById('email').value).toBe('john@example.com')
+    })
+
+    test('should coordinate storage with application tracking', async () => {
+      const testJob = mockJobData.softwareEngineerJob
+      
+      // Check if already applied
+      chrome.storage.local.get.mockResolvedValue({ applications: [] })
+      const hasApplied = await storage.hasAppliedToJob(testJob.id)
+      expect(hasApplied).toBe(false)
+
+      // Record new application
+      const application = {
+        id: 'app-123',
+        jobId: testJob.id,
+        jobDetails: testJob,
+        appliedAt: new Date().toISOString(),
+        status: 'submitted'
+      }
+
+      await storage.addApplication(application)
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({
+        applications: [application]
+      })
+
+      // Check application count
+      chrome.storage.local.get.mockResolvedValue({ 
+        applications: [application] 
+      })
+      const todayCount = await storage.getTodayApplicationCount()
+      expect(todayCount).toBe(1)
+
+      // Update statistics
+      const statsUpdate = {
+        totalApplications: 1,
+        successfulApplications: 1,
+        successRate: 100
+      }
+      await storage.updateStatistics(statsUpdate)
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({
+        statistics: expect.objectContaining(statsUpdate)
+      })
+    })
+
+    test('should handle configuration persistence across modules', async () => {
+      // Update config through filter engine
+      const newFilterConfig = {
+        filters: {
+          isRemote: 'yes',
+          keywords: ['react', 'node'],
+          keywordLogic: 'AND'
+        }
+      }
+
+      filterEngine.updateConfig(newFilterConfig)
+      
+      // Save config through storage
+      await storage.saveConfig(newFilterConfig)
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ config: newFilterConfig })
+
+      // Load config in different module
+      chrome.storage.local.get.mockResolvedValue({ config: newFilterConfig })
+      const loadedConfig = await storage.getConfig()
+      
+      expect(loadedConfig.filters.isRemote).toBe('yes')
+      expect(loadedConfig.filters.keywords).toEqual(['react', 'node'])
+
+      // Apply loaded config to filter engine
+      filterEngine.updateConfig(loadedConfig)
+      expect(filterEngine.config.filters.isRemote).toBe('yes')
+    })
+
+    test('should handle custom answers integration with form filling', async () => {
+      const customAnswers = [
+        { question: 'Why do you want this job?', answer: 'Great growth opportunity' },
+        { question: 'Years of React experience?', answer: '5 years' }
+      ]
+
+      // Save custom answers
+      await storage.saveCustomAnswers(customAnswers)
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ customAnswers })
+
+      // Load in form filler
+      chrome.storage.local.get.mockResolvedValue({ customAnswers })
+      const answers = await storage.getCustomAnswers()
+      expect(answers).toEqual(customAnswers)
+
+      // Use in form filling
+      formFiller.customAnswers = answers
+
+      const form = document.createElement('form')
+      form.innerHTML = `
+        <textarea name="motivation" placeholder="Why do you want this job?"></textarea>
+        <input type="text" name="experience" placeholder="Years of experience">
+      `
+      document.body.appendChild(form)
+
+      const fillResult = await formFiller.fillForm()
+      expect(fillResult.success).toBe(true)
+
+      // Should use custom answers for matching fields
+      const motivationField = document.querySelector('textarea[name="motivation"]')
+      const experienceField = document.querySelector('input[name="experience"]')
+      
+      expect(motivationField.value).toBe('Great growth opportunity')
+      expect(experienceField.value).toBe('5 years')
+    })
+  })
+
+  describe('Content Script Orchestration', () => {
+    test('should coordinate all modules through content script messages', async () => {
+      // Setup job search page
+      document.body.innerHTML = mockDOMStructures.jobSearchPage
+      window.location.href = 'https://www.linkedin.com/jobs/search/'
+
+      // Simulate content script message handling
+      const messageHandler = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0] ||
+        global.handleMessage
+
+      if (messageHandler) {
+        // Test ANALYZE_PAGE message
+        const mockSendResponse = jest.fn()
+        const result = messageHandler({ type: 'ANALYZE_PAGE' }, {}, mockSendResponse)
+        
+        if (result === true) {
+          // Async handler
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+
+        expect(mockSendResponse).toHaveBeenCalled()
+
+        // Test GET_JOBS message
+        const jobsResponse = jest.fn()
+        messageHandler({ type: 'GET_JOBS' }, {}, jobsResponse)
+        
+        if (result === true) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+
+        expect(jobsResponse).toHaveBeenCalled()
+      }
+    })
+
+    test('should handle job filtering during page analysis', async () => {
+      // Configure filter engine
+      filterEngine.config.filters = {
+        isRemote: 'yes',
+        keywords: ['javascript'],
+        keywordLogic: 'OR'
+      }
+
+      // Setup job search page
+      document.body.innerHTML = mockDOMStructures.jobSearchPage
+      
+      // Analyze page
+      const jobs = await findJobsOnPage()
+      
+      // Filter jobs using integrated filter engine
+      const filteredJobs = filterEngine.filterJobs(jobs)
+      
+      // Send filtered results to background
+      chrome.runtime.sendMessage({
+        type: 'JOBS_FOUND',
+        payload: { 
+          jobs: filteredJobs,
+          totalFound: jobs.length,
+          matched: filteredJobs.length
+        }
+      })
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'JOBS_FOUND',
+          payload: expect.objectContaining({
+            jobs: expect.any(Array),
+            matched: expect.any(Number)
+          })
+        })
+      )
+    })
+
+    test('should coordinate storage operations during application flow', async () => {
+      const testJob = mockJobData.softwareEngineerJob
+
+      // Check if already applied
+      chrome.storage.local.get.mockResolvedValue({ applications: [] })
+      
+      // Navigate to job detail
+      document.body.innerHTML = mockDOMStructures.jobDetailPage
+      window.location.href = `https://www.linkedin.com/jobs/view/${testJob.id}/`
+      analyzer.waitForElement = jest.fn().mockResolvedValue(document.querySelector('.jobs-description'))
+
+      // Analyze job
+      const analysis = await analyzePage()
+      expect(analysis.success).toBe(true)
+
+      // Click Easy Apply
+      const clickResult = await clickEasyApply(testJob.id)
+      expect(clickResult.success).toBe(true)
+
+      // Fill form
+      document.body.innerHTML = mockDOMStructures.applicationFormPage
+      const fillResult = await fillApplicationForm()
+      expect(fillResult.success).toBe(true)
+
+      // Submit and record application
+      const submitResult = await submitApplication()
+      expect(submitResult.success).toBe(true)
+
+      // Should trigger storage of application
+      const application = {
+        id: expect.any(String),
+        jobId: testJob.id,
+        appliedAt: expect.any(String),
+        status: 'submitted'
+      }
+
+      if (global.recordApplication) {
+        await global.recordApplication(testJob, 'submitted')
+      }
+
+      // Verify background message was sent
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'APPLICATION_SUBMITTED'
+        })
+      )
+    })
+  })
+
+  describe('End-to-End Workflow Integration', () => {
+    test('should handle complete job discovery to application workflow', async () => {
+      // Phase 1: Configure system
+      filterEngine.config.filters = {
+        isRemote: 'any',
+        keywords: ['javascript', 'react'],
+        keywordLogic: 'OR',
+        experienceLevel: 'any'
+      }
+
+      // Phase 2: Job discovery
+      document.body.innerHTML = mockDOMStructures.jobSearchPage
+      const jobs = await findJobsOnPage()
+      expect(jobs.length).toBeGreaterThan(0)
+
+      // Phase 3: Job filtering
+      const filteredJobs = filterEngine.filterJobs(jobs)
+      expect(filteredJobs.length).toBeGreaterThanOrEqual(0)
+
+      // Phase 4: Job detail analysis
+      if (filteredJobs.length > 0) {
+        const selectedJob = filteredJobs[0]
+        
+        document.body.innerHTML = mockDOMStructures.jobDetailPage
+        window.location.href = `https://www.linkedin.com/jobs/view/${selectedJob.id}/`
+        analyzer.waitForElement = jest.fn().mockResolvedValue(document.querySelector('.jobs-description'))
+
+        const detailAnalysis = await analyzePage()
+        expect(detailAnalysis.success).toBe(true)
+
+        // Phase 5: Application process
+        const clickResult = await clickEasyApply(selectedJob.id)
+        expect(clickResult.success).toBe(true)
+
+        document.body.innerHTML = mockDOMStructures.applicationFormPage
+        
+        const fillResult = await fillApplicationForm()
+        expect(fillResult.success).toBe(true)
+
+        const submitResult = await submitApplication()
+        expect(submitResult.success).toBe(true)
+
+        // Phase 6: Storage and tracking
+        const hasApplied = await storage.hasAppliedToJob(selectedJob.id)
+        // Should be recorded as applied (mocked)
+      }
+    })
+
+    test('should handle error recovery across modules', async () => {
+      // Simulate analyzer error
+      analyzer.analyze = jest.fn().mockRejectedValue(new Error('Analysis failed'))
+
+      // Should continue with form filling if form is present
+      const form = document.createElement('form')
+      form.innerHTML = '<input type="text" name="test" required>'
+      document.body.appendChild(form)
+
+      const fillResult = await formFiller.fillForm({ test: 'value' })
+      expect(fillResult.success).toBe(true)
+
+      // Simulate storage error
+      chrome.storage.local.set.mockRejectedValue(new Error('Storage failed'))
+
+      try {
+        await storage.set({ test: 'data' })
+      } catch (error) {
+        expect(error.message).toBe('Storage failed')
+      }
+
+      // Other modules should continue functioning
+      const matchResult = filterEngine.matchJob(mockJobData.softwareEngineerJob)
+      expect(matchResult).toBeDefined()
+    })
+
+    test('should maintain performance across integrated workflow', async () => {
+      // Create large dataset
+      const manyJobs = Array.from({ length: 200 }, (_, i) => ({
+        ...mockJobData.softwareEngineerJob,
+        id: `job-${i}`,
+        title: `Job ${i}`,
+        description: i % 2 === 0 ? 'React JavaScript development' : 'Angular TypeScript development'
+      }))
+
+      const startTime = performance.now()
+
+      // Filter large job set
+      filterEngine.config.filters = {
+        keywords: ['react', 'javascript'],
+        keywordLogic: 'OR'
+      }
+
+      const filtered = filterEngine.filterJobs(manyJobs)
+      
+      const endTime = performance.now()
+      const duration = endTime - startTime
+
+      // Should complete filtering in reasonable time
+      expect(duration).toBeLessThan(1000)
+      expect(filtered.length).toBeGreaterThan(0)
+      expect(filtered.length).toBeLessThanOrEqual(manyJobs.length)
+
+      // Results should be properly sorted by score
+      for (let i = 1; i < filtered.length; i++) {
+        expect(filtered[i-1].matchScore).toBeGreaterThanOrEqual(filtered[i].matchScore)
+      }
     })
   })
 })

@@ -50,6 +50,12 @@ function setupEventListeners() {
   elements.pauseBtn.addEventListener('click', pauseAutomation);
   elements.resumeBtn.addEventListener('click', resumeAutomation);
   
+  // Test button
+  const testBtn = document.getElementById('testBtn');
+  if (testBtn) {
+    testBtn.addEventListener('click', testFindJobs);
+  }
+  
   // Links
   elements.settingsLink.addEventListener('click', (e) => {
     e.preventDefault();
@@ -69,6 +75,35 @@ function setupEventListeners() {
       await toggleQuickFilter(filter, e.target);
     });
   });
+}
+
+// Test find jobs function
+async function testFindJobs() {
+  try {
+    console.log('Testing job detection...');
+    hideError();
+    
+    // Check if we're on LinkedIn
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab.url || !tab.url.includes('linkedin.com')) {
+      showError('Please navigate to LinkedIn jobs page first');
+      return;
+    }
+    
+    // Send test message directly to content script
+    const response = await chrome.tabs.sendMessage(tab.id, { type: 'ANALYZE_PAGE' });
+    
+    if (response && response.success) {
+      showError(`Found ${response.jobsCount || 0} jobs on page`);
+    } else {
+      showError('No response from content script. Check console for details.');
+    }
+    
+  } catch (error) {
+    console.error('Test error:', error);
+    showError('Test failed: ' + error.message);
+  }
 }
 
 // Start automation

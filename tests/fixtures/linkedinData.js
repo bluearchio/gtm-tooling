@@ -3,7 +3,7 @@
  * Contains mock data structures and page layouts for testing
  */
 
-export const mockJobData = {
+const mockJobData = {
   // Sample job listings for search results page
   searchResults: [
     {
@@ -135,7 +135,7 @@ Benefits:
   }
 }
 
-export const mockUserProfile = {
+const mockUserProfile = {
   firstName: 'John',
   lastName: 'Doe',
   email: 'john.doe@example.com',
@@ -210,7 +210,7 @@ Best regards,
   ]
 }
 
-export const mockFormFields = {
+const mockFormFields = {
   // Standard application form fields
   basicForm: [
     {
@@ -330,7 +330,7 @@ export const mockFormFields = {
   ]
 }
 
-export const mockDOMStructures = {
+const mockDOMStructures = {
   // LinkedIn job search results page structure
   jobSearchPage: `
     <div class="jobs-search-results-list">
@@ -437,7 +437,7 @@ export const mockDOMStructures = {
   `
 }
 
-export const mockFilterCriteria = {
+const mockFilterCriteria = {
   basic: {
     isRemote: 'any',
     keywords: ['javascript', 'react'],
@@ -473,7 +473,7 @@ export const mockFilterCriteria = {
   }
 }
 
-export const mockApplicationData = {
+const mockApplicationData = {
   successful: {
     id: 'app-123',
     jobId: '3472839472',
@@ -512,7 +512,7 @@ export const mockApplicationData = {
   }
 }
 
-export const mockStatistics = {
+const mockStatistics = {
   totalApplications: 45,
   successfulApplications: 38,
   failedApplications: 7,
@@ -538,7 +538,7 @@ export const mockStatistics = {
 }
 
 // Helper functions for creating test scenarios
-export const createMockJobCard = (jobData) => {
+const createMockJobCard = (jobData) => {
   const card = document.createElement('div')
   card.className = 'jobs-search-results__list-item'
   card.setAttribute('data-job-id', jobData.id)
@@ -555,7 +555,7 @@ export const createMockJobCard = (jobData) => {
   return card
 }
 
-export const createMockFormField = (fieldData) => {
+const createMockFormField = (fieldData) => {
   const container = document.createElement('div')
   container.className = 'form-group'
   
@@ -629,4 +629,17 @@ function getRelativeTime(date) {
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return '1 day ago'
   return `${diffDays} days ago`
+}
+
+// CommonJS exports
+module.exports = {
+  mockJobData,
+  mockUserProfile,
+  mockFormFields,
+  mockDOMStructures,
+  mockFilterCriteria,
+  mockApplicationData,
+  mockStatistics,
+  createMockJobCard,
+  createMockFormField
 }

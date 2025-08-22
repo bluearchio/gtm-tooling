@@ -5,21 +5,20 @@
 
 // Storage utility functions (inlined to avoid importScripts issues)
 const StorageUtils = {
-  async get(key) {
-    const result = await chrome.storage.local.get(key);
-    return result[key];
+  get: function(key) {
+    return chrome.storage.local.get(key).then(result => result[key]);
   },
   
-  async set(key, value) {
-    await chrome.storage.local.set({ [key]: value });
+  set: function(key, value) {
+    return chrome.storage.local.set({ [key]: value });
   },
   
-  async remove(key) {
-    await chrome.storage.local.remove(key);
+  remove: function(key) {
+    return chrome.storage.local.remove(key);
   },
   
-  async clear() {
-    await chrome.storage.local.clear();
+  clear: function() {
+    return chrome.storage.local.clear();
   }
 };
 

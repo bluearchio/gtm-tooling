@@ -24,7 +24,7 @@ module.exports = {
   ],
   
   // Module name mapping for ES6 imports
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1'
   },

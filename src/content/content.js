@@ -18,34 +18,42 @@ const contentState = {
 
 // Initialize content script
 (function initContentScript() {
-  console.log('LinkedIn Auto-Apply content script loaded');
+  console.log('LinkedIn Auto-Apply: Content script initializing...');
+  console.log('Current URL:', window.location.href);
   
   // Check if we're on a LinkedIn jobs page
-  if (!window.location.href.includes('linkedin.com/jobs')) {
-    console.log('Not on LinkedIn jobs page, content script inactive');
+  if (!window.location.href.includes('linkedin.com')) {
+    console.log('LinkedIn Auto-Apply: Not on LinkedIn, content script inactive');
     return;
   }
+  
+  console.log('LinkedIn Auto-Apply: On LinkedIn, initializing modules...');
   
   // Initialize modules
   initializeModules();
   
   // Set up message listener
   chrome.runtime.onMessage.addListener(handleMessage);
+  console.log('LinkedIn Auto-Apply: Message listener set up');
   
   // Set up page observer
   observePageChanges();
+  console.log('LinkedIn Auto-Apply: Page observer set up');
   
-  // Initial page analysis
-  analyzePage();
+  // Initial page analysis after a short delay to let page load
+  setTimeout(() => {
+    console.log('LinkedIn Auto-Apply: Starting initial page analysis...');
+    analyzePage();
+  }, 2000);
 })();
 
 // Initialize all modules
 function initializeModules() {
   try {
     // Initialize anti-detection if available
-    if (typeof AntiDetection !== 'undefined') {
-      contentState.antiDetection = new AntiDetection();
-      contentState.antiDetection.init();
+    if (typeof AntiDetectionSystem !== 'undefined') {
+      contentState.antiDetection = new AntiDetectionSystem();
+      contentState.antiDetection.initialize();
     }
     
     // Initialize analyzer if available
@@ -190,11 +198,51 @@ async function findJobsOnPage() {
   const jobs = [];
   
   try {
-    // Wait for job cards to load
-    await waitForElement('.jobs-search-results-list');
+    console.log('Finding jobs on page...');
     
-    // Find all job cards
-    const jobCards = document.querySelectorAll('.jobs-search-results__list-item, .job-card-container, [data-job-id]');
+    // Wait for job cards to load - updated selector
+    const containerSelectors = [
+      '.jobs-search-results-list',
+      '.scaffold-layout__list-container',
+      '.jobs-search__results-list',
+      'ul[role="list"]'
+    ];
+    
+    let found = false;
+    for (const selector of containerSelectors) {
+      try {
+        await waitForElement(selector, 3000);
+        found = true;
+        console.log(`Found container: ${selector}`);
+        break;
+      } catch (e) {
+        // Try next selector
+      }
+    }
+    
+    if (!found) {
+      console.log('No job container found, trying direct job card search');
+    }
+    
+    // Find all job cards - updated selectors for current LinkedIn
+    const selectors = [
+      'li[data-occludable-job-id]',
+      '.scaffold-layout__list-container li',
+      'ul[role="list"] li',
+      '.jobs-search-results__list-item',
+      '.job-card-container',
+      '[data-job-id]'
+    ];
+    
+    let jobCards = [];
+    for (const selector of selectors) {
+      const cards = document.querySelectorAll(selector);
+      if (cards.length > 0) {
+        jobCards = cards;
+        console.log(`Found ${cards.length} job cards using selector: ${selector}`);
+        break;
+      }
+    }
     
     for (const card of jobCards) {
       try {

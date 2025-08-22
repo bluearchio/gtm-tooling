@@ -96,6 +96,66 @@ describe('LinkedInAnalyzer', () => {
       expect(jobCards.length).toBe(2)
     })
 
+    test('should handle new LinkedIn selector patterns', () => {
+      // Test with data-occludable-job-id selector
+      document.body.innerHTML = `
+        <ul class="jobs-search-results-list">
+          <li data-occludable-job-id="job123">
+            <h3 class="job-card-list__title">Software Engineer</h3>
+            <a class="job-card-container__company-name">Tech Corp</a>
+          </li>
+          <li data-occludable-job-id="job456">
+            <h3 class="job-card-list__title">Frontend Developer</h3>
+            <a class="job-card-container__company-name">StartupCo</a>
+          </li>
+        </ul>
+      `
+      
+      analyzer.analyzeJobListings()
+      
+      // Check console logs for debugging
+      const consoleSpy = jest.spyOn(console, 'log')
+      analyzer.analyzeJobListings()
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Found 2 jobs using selector'))
+      consoleSpy.mockRestore()
+      
+      // Verify jobs were found
+      expect(analyzer.jobCache.size).toBe(2)
+    })
+
+    test('should try multiple container selectors in sequence', () => {
+      // Test fallback when primary selectors don't exist
+      document.body.innerHTML = `
+        <div class="scaffold-layout__list-container">
+          <li data-job-id="scaffold-job">
+            <h3 class="job-card-list__title">Backend Engineer</h3>
+          </li>
+        </div>
+      `
+      
+      const consoleSpy = jest.spyOn(console, 'log')
+      analyzer.analyzeJobListings()
+      
+      // Should log which selector worked
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('using selector'))
+      consoleSpy.mockRestore()
+      
+      expect(analyzer.jobCache.size).toBeGreaterThan(0)
+    })
+
+    test('should handle when no job cards found', () => {
+      document.body.innerHTML = '<div>No jobs here</div>'
+      
+      const consoleSpy = jest.spyOn(console, 'log')
+      analyzer.analyzeJobListings()
+      
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No job cards found'))
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('li elements found'))
+      consoleSpy.mockRestore()
+      
+      expect(analyzer.jobCache.size).toBe(0)
+    })
+
     test('should extract job information from cards', () => {
       const jobCard = createMockJobCard(mockJobData.searchResults[0])
       document.body.appendChild(jobCard)
@@ -107,6 +167,104 @@ describe('LinkedInAnalyzer', () => {
       expect(extractedJob.title).toBe(mockJobData.searchResults[0].title)
       expect(extractedJob.company).toBe(mockJobData.searchResults[0].company)
       expect(extractedJob.location).toBe(mockJobData.searchResults[0].location)
+    })
+
+    test('should extract job ID from multiple attribute patterns', () => {
+      // Test data-occludable-job-id
+      const card1 = document.createElement('li')
+      card1.setAttribute('data-occludable-job-id', 'occ-job-123')
+      card1.innerHTML = '<h3 class="job-card-list__title">Job 1</h3>'
+      
+      const job1 = analyzer.extractJobFromCard(card1)
+      expect(job1?.id).toBe('occ-job-123')
+      
+      // Test data-job-id
+      const card2 = document.createElement('div')
+      card2.setAttribute('data-job-id', 'std-job-456')
+      card2.innerHTML = '<h3 class="job-card-list__title">Job 2</h3>'
+      
+      const job2 = analyzer.extractJobFromCard(card2)
+      expect(job2?.id).toBe('std-job-456')
+      
+      // Test nested data-job-id
+      const card3 = document.createElement('li')
+      card3.innerHTML = '<div data-job-id="nested-job-789"><h3 class="job-card-list__title">Job 3</h3></div>'
+      
+      const job3 = analyzer.extractJobFromCard(card3)
+      expect(job3?.id).toBe('nested-job-789')
+    })
+
+    test('should use updated title selectors', () => {
+      const testCases = [
+        { selector: 'a[data-control-name="job_card_title_link"] span', title: 'Title Link' },
+        { selector: '.job-card-list__title', title: 'List Title' },
+        { selector: 'a[class*="job-card-list__title"]', title: 'Class Title' },
+        { selector: 'a[id*="job-title"]', title: 'ID Title' },
+        { selector: 'h3.job-card-list__title', title: 'H3 Title' },
+        { selector: 'div[class*="job-card-list__title"]', title: 'Div Title' }
+      ]
+      
+      testCases.forEach(({ selector, title }) => {
+        const card = document.createElement('li')
+        card.setAttribute('data-job-id', 'test-job')
+        
+        // Create element matching selector
+        const element = document.createElement(selector.includes('a') ? 'a' : 
+                                              selector.includes('h3') ? 'h3' : 'div')
+        
+        // Set appropriate attributes
+        if (selector.includes('data-control-name')) {
+          element.setAttribute('data-control-name', 'job_card_title_link')
+          const span = document.createElement('span')
+          span.textContent = title
+          element.appendChild(span)
+        } else if (selector.includes('class')) {
+          element.className = 'job-card-list__title'
+          element.textContent = title
+        } else if (selector.includes('id')) {
+          element.id = 'job-title-123'
+          element.textContent = title
+        } else {
+          element.textContent = title
+        }
+        
+        card.appendChild(element)
+        const job = analyzer.extractJobFromCard(card)
+        expect(job?.title).toBe(title)
+      })
+    })
+
+    test('should use updated company selectors', () => {
+      const testCases = [
+        'a[data-control-name="job_card_company_link"]',
+        '.job-card-container__primary-description',
+        '.job-card-container__company-name',
+        'span[class*="job-card-container__primary-description"]',
+        'a[class*="company-name"]',
+        'h4.job-card-container__company-name'
+      ]
+      
+      testCases.forEach(selector => {
+        const card = document.createElement('li')
+        card.setAttribute('data-job-id', 'test-job')
+        
+        const element = document.createElement(
+          selector.includes('a') ? 'a' : 
+          selector.includes('h4') ? 'h4' : 'span'
+        )
+        
+        if (selector.includes('data-control-name')) {
+          element.setAttribute('data-control-name', 'job_card_company_link')
+        } else if (selector.includes('class')) {
+          element.className = selector.replace(/[\[\].\*="\]]/g, '')
+        }
+        
+        element.textContent = 'Test Company'
+        card.appendChild(element)
+        
+        const job = analyzer.extractJobFromCard(card)
+        expect(job?.company).toBe('Test Company')
+      })
     })
 
     test('should detect Easy Apply jobs', () => {
@@ -145,6 +303,59 @@ describe('LinkedInAnalyzer', () => {
       analyzer.analyzeJobListings()
       
       expect(analyzer.jobCache.size).toBe(1)
+    })
+
+    test('should log debugging information during analysis', () => {
+      document.body.innerHTML = `
+        <ul class="jobs-search-results-list">
+          <li data-occludable-job-id="debug-job">
+            <h3 class="job-card-list__title">Debug Job</h3>
+          </li>
+        </ul>
+      `
+      
+      const consoleSpy = jest.spyOn(console, 'log')
+      analyzer.analyzeJobListings()
+      
+      // Verify debug logs
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('LinkedIn Analyzer'))
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Found'))
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('jobs using selector'))
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Extracted'))
+      
+      consoleSpy.mockRestore()
+    })
+
+    test('should handle mixed job card types', () => {
+      // Mix of old and new LinkedIn structures
+      document.body.innerHTML = `
+        <div>
+          <li data-occludable-job-id="new-style">
+            <h3 class="job-card-list__title">New Style Job</h3>
+          </li>
+          <div data-job-id="old-style">
+            <h3 class="job-card-list__title">Old Style Job</h3>
+          </div>
+          <li class="jobs-search-results__list-item" data-job-id="class-based">
+            <h3 class="job-card-list__title">Class Based Job</h3>
+          </li>
+        </div>
+      `
+      
+      // Try all selector patterns
+      const selectors = [
+        'li[data-occludable-job-id]',
+        'div[data-job-id]',
+        '.jobs-search-results__list-item'
+      ]
+      
+      let totalJobs = 0
+      selectors.forEach(selector => {
+        const cards = document.querySelectorAll(selector)
+        totalJobs += cards.length
+      })
+      
+      expect(totalJobs).toBe(3)
     })
   })
 

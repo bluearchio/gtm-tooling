@@ -53,9 +53,33 @@ class LinkedInAnalyzer {
    * Analyze job listings on search results page
    */
   analyzeJobListings() {
-    const jobCards = document.querySelectorAll('[data-job-id], .job-card-container, li[data-occludable-job-id]');
+    // Updated selectors for current LinkedIn structure
+    const selectors = [
+      'li[data-occludable-job-id]',
+      'div.jobs-search-results__list-item',
+      'li.jobs-search-results__list-item', 
+      'div[data-job-id]',
+      '.scaffold-layout__list-container li',
+      '.jobs-search__results-list li'
+    ];
+    
+    let jobCards = [];
+    for (const selector of selectors) {
+      const cards = document.querySelectorAll(selector);
+      if (cards.length > 0) {
+        jobCards = cards;
+        console.log(`LinkedIn Analyzer: Found ${cards.length} jobs using selector: ${selector}`);
+        break;
+      }
+    }
+    
+    if (jobCards.length === 0) {
+      console.log('LinkedIn Analyzer: No job cards found. Page structure may have changed.');
+      console.log('Available elements:', document.querySelectorAll('li').length, 'li elements found');
+      return;
+    }
+    
     const jobs = [];
-
     jobCards.forEach(card => {
       const job = this.extractJobFromCard(card);
       if (job && !this.jobCache.has(job.id)) {
@@ -64,6 +88,7 @@ class LinkedInAnalyzer {
       }
     });
 
+    console.log(`LinkedIn Analyzer: Extracted ${jobs.length} jobs`);
     if (jobs.length > 0) {
       this.sendMessage('JOBS_FOUND', { jobs });
     }
@@ -80,12 +105,26 @@ class LinkedInAnalyzer {
       
       if (!jobId) return null;
 
-      // Title extraction
-      const titleElement = card.querySelector('.job-card-list__title, [class*="job-card-list__title"], a[id*="job-title"]');
+      // Title extraction - updated selectors
+      const titleElement = card.querySelector(
+        'a[data-control-name="job_card_title_link"] span, ' +
+        '.job-card-list__title, ' +
+        'a[class*="job-card-list__title"], ' +
+        'a[id*="job-title"], ' +
+        'h3.job-card-list__title, ' +
+        'div[class*="job-card-list__title"]'
+      );
       const title = titleElement?.textContent?.trim() || '';
 
-      // Company extraction
-      const companyElement = card.querySelector('.job-card-container__company-name, [class*="company-name"], a[data-control-name="company_link"]');
+      // Company extraction - updated selectors  
+      const companyElement = card.querySelector(
+        'a[data-control-name="job_card_company_link"], ' +
+        '.job-card-container__primary-description, ' +
+        '.job-card-container__company-name, ' +
+        'span[class*="job-card-container__primary-description"], ' +
+        'a[class*="company-name"], ' +
+        'h4.job-card-container__company-name'
+      );
       const company = companyElement?.textContent?.trim() || '';
 
       // Location extraction

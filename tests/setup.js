@@ -3,8 +3,8 @@
  * Configures testing environment with Chrome extension mocks and global utilities
  */
 
-import 'jest-webextension-mock'
-import sinon from 'sinon'
+require('jest-webextension-mock')
+// const sinon = require('sinon')
 
 // Mock Chrome Extension APIs
 global.chrome = {
@@ -391,7 +391,7 @@ function createApplicationFormPage() {
 beforeEach(() => {
   // Reset all mocks before each test
   jest.clearAllMocks()
-  sinon.restore()
+  // sinon.restore()
   
   // Reset DOM
   document.body.innerHTML = ''
